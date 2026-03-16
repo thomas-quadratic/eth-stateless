@@ -7,7 +7,7 @@ use reth_db::{
 };
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
-use reth_provider::{providers::StaticFileProvider, ProviderFactory, StageCheckpointReader};
+use reth_provider::{providers::{RocksDBProvider, StaticFileProvider}, ProviderFactory, StageCheckpointReader};
 use reth_stages::StageId;
 use std::{path::Path, sync::Arc};
 use tabled::{settings::Panel, Table, Tabled};
@@ -35,18 +35,32 @@ fn main() -> Result<()> {
 
     let db_path = Path::new(&cli.datadir).join("db");
     let db = reth_db::open_db_read_only(
-        db_path.as_ref(),
+        db_path.as_path(),
         DatabaseArguments::default()
             .with_max_read_transaction_duration(Some(MaxReadTransactionDuration::Unbounded)),
     )
     .map_err(|err| anyhow!(err))?;
+
+    let tokio_rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    let runtime = reth_tasks::Runtime::with_existing_handle(tokio_rt.handle().clone())
+        .map_err(|err| anyhow!("{err}"))?;
+
+    let rocksdb_provider =
+        RocksDBProvider::builder(Path::new(&cli.datadir).join("rocksdb"))
+            .build()
+            .map_err(|err| anyhow!("{err}"))?;
 
     let spec = ChainSpecBuilder::mainnet().build();
     let factory = ProviderFactory::<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>::new(
         db.into(),
         spec.into(),
         StaticFileProvider::read_only(db_path.join("static_files"), true)?,
-    );
+        rocksdb_provider,
+        runtime,
+    )
+    .map_err(|err| anyhow!("{err}"))?;
     let provider = factory.provider()?;
 
     let latest_block_number = provider
