@@ -2,11 +2,12 @@ use anyhow::{anyhow, Result};
 use clap::{command, Args, Parser};
 use iterators::{eip7748::Eip7748Iterator, plain::PlainIterator};
 use progress::AddressProgressBar;
-use reth_chainspec::ChainSpecBuilder;
+use reth_chainspec::{ChainSpec, HOODI, MAINNET};
 use reth_db::{
     mdbx::{tx::Tx, DatabaseArguments, MaxReadTransactionDuration, RO},
-    DatabaseEnv,
+    DatabaseEnv, PlainAccountState, PlainStorageState,
 };
+use reth_db_api::transaction::DbTx;
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::{providers::{RocksDBProvider, StaticFileProvider}, ProviderFactory, StageCheckpointReader};
@@ -17,11 +18,29 @@ mod cmds;
 mod iterators;
 mod progress;
 
+#[derive(clap::ValueEnum, Clone)]
+enum Network {
+    Mainnet,
+    Hoodi,
+}
+
+impl Network {
+    fn chain_spec(&self) -> Arc<ChainSpec> {
+        match self {
+            Network::Mainnet => MAINNET.clone(),
+            Network::Hoodi => HOODI.clone(),
+        }
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "report")]
 struct Cli {
     #[arg(short = 'd', long = "datadir", help = "Reth datadir path")]
     datadir: String,
+
+    #[arg(long, value_enum, default_value = "mainnet", help = "Network chain spec")]
+    network: Network,
 
     #[command(subcommand)]
     subcmd: SubCommand,
@@ -89,10 +108,10 @@ fn main() -> Result<()> {
             .build()
             .map_err(|err| anyhow!("{err}"))?;
 
-    let spec = ChainSpecBuilder::mainnet().build();
+    let spec = cli.network.chain_spec();
     let factory = ProviderFactory::<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>::new(
         db.into(),
-        spec.into(),
+        spec,
         StaticFileProvider::read_only(db_path.join("static_files"), true)?,
         rocksdb_provider,
         runtime,
@@ -119,6 +138,13 @@ fn main() -> Result<()> {
 }
 
 fn generate_cmd(tx: &Tx<RO>, path: &str, order: OrderArgs) -> Result<()> {
+    let n_accounts = tx.entries::<PlainAccountState>()?;
+    let n_slots = tx.entries::<PlainStorageState>()?;
+    println!(
+        "Database: {} accounts, {} storage slots",
+        n_accounts, n_slots
+    );
+
     if order.plain {
         println!("[1/1] Generating preimage file...");
         cmds::generate(
