@@ -3,14 +3,14 @@ members = ["analysis", "preimages"]
 resolver = "2"
 
 [workspace.dependencies]
-reth-db = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-db-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-stages = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
-reth-tasks = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.1" }
+reth-db = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-stages = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-tasks = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
 alloy-primitives = "1.5.7"
 alloy-consensus = "1.7.3"
 anyhow = "1.0.40"
