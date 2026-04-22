@@ -1,5 +1,5 @@
 [workspace]
-members = ["analysis", "preimages"]
+members = ["analysis", "preimages", "db-check"]
 resolver = "2"
 
 [workspace.dependencies]
