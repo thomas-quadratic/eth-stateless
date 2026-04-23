@@ -5,6 +5,7 @@ use alloy_primitives::{Address, FixedBytes};
 use anyhow::{anyhow, Context, Result};
 use reth_db::mdbx::tx::Tx;
 use reth_db::mdbx::RO;
+use reth_provider::providers::RocksDBProvider;
 use std::collections::HashMap;
 use std::{
     fs::File,
@@ -65,10 +66,10 @@ pub fn verify(path: &str, it: impl PreimageIterator, mut pb: AddressProgressBar)
     Ok(())
 }
 
-pub fn storage_slot_freq<const N: usize>(tx: &Tx<RO>, top_n_detail: usize) -> Result<()> {
+pub fn storage_slot_freq<const N: usize>(tx: &Tx<RO>, rocksdb: &RocksDBProvider, top_n_detail: usize) -> Result<()> {
     let mut counts: HashMap<[u8; N], u32> = HashMap::new();
     let mut pb = AddressProgressBar::new(false);
-    let it = PlainIterator::new(tx)?;
+    let it = PlainIterator::new(tx, rocksdb)?;
     let mut total_storage_slots = 0;
     for entry in it {
         match entry {

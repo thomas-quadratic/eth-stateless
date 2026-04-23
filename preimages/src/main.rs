@@ -1,16 +1,19 @@
 use anyhow::{anyhow, Result};
-use clap::{command, Args, Parser};
+use clap::{Args, Parser};
 use iterators::{eip7748::Eip7748Iterator, plain::PlainIterator};
 use progress::AddressProgressBar;
 use reth_chainspec::{ChainSpec, HOODI, MAINNET};
 use reth_db::{
     mdbx::{tx::Tx, DatabaseArguments, MaxReadTransactionDuration, RO},
-    DatabaseEnv, PlainAccountState, PlainStorageState,
+    tables, DatabaseEnv,
 };
 use reth_db_api::transaction::DbTx;
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
-use reth_provider::{providers::{RocksDBProvider, StaticFileProvider}, ProviderFactory, StageCheckpointReader};
+use reth_provider::{
+    providers::{RocksDBProvider, StaticFileProvider},
+    ProviderFactory, RocksDBProviderFactory, StageCheckpointReader,
+};
 use reth_stages::StageId;
 use std::{path::Path, sync::Arc};
 
@@ -125,21 +128,20 @@ fn main() -> Result<()> {
         .ok_or(anyhow!("No finish checkpoint"))?;
     println!("Database block number: {:?}", latest_block_number);
 
+    let rocksdb = provider.rocksdb_provider();
     let tx = provider.tx_ref();
     match cli.subcmd {
-        SubCommand::Generate { path, order } => generate_cmd(tx, &path, order)?,
-        SubCommand::Verify { path, order } => {
-            verify_cmd(tx, &path, order)?;
-        }
-        SubCommand::StorageSlotsFrequency => cmds::storage_slot_freq::<29>(tx, 1_000)?,
+        SubCommand::Generate { path, order } => generate_cmd(tx, &rocksdb, &path, order)?,
+        SubCommand::Verify { path, order } => verify_cmd(tx, &rocksdb, &path, order)?,
+        SubCommand::StorageSlotsFrequency => cmds::storage_slot_freq::<29>(tx, &rocksdb, 1_000)?,
     }
 
     Ok(())
 }
 
-fn generate_cmd(tx: &Tx<RO>, path: &str, order: OrderArgs) -> Result<()> {
-    let n_accounts = tx.entries::<PlainAccountState>()?;
-    let n_slots = tx.entries::<PlainStorageState>()?;
+fn generate_cmd(tx: &Tx<RO>, rocksdb: &RocksDBProvider, path: &str, order: OrderArgs) -> Result<()> {
+    let n_accounts = tx.entries::<tables::HashedAccounts>()?;
+    let n_slots = tx.entries::<tables::HashedStorages>()?;
     println!(
         "Database: {} accounts, {} storage slots",
         n_accounts, n_slots
@@ -149,13 +151,13 @@ fn generate_cmd(tx: &Tx<RO>, path: &str, order: OrderArgs) -> Result<()> {
         println!("[1/1] Generating preimage file...");
         cmds::generate(
             path,
-            PlainIterator::new(tx)?,
+            PlainIterator::new(tx, rocksdb)?,
             AddressProgressBar::new(false),
         )?;
     } else if order.eip7748 {
         println!("[1/2] Ordering account addresses by hash...");
         let mut pb = AddressProgressBar::new(false);
-        let it = Eip7748Iterator::new(tx, Some(|addr| pb.progress(addr)))?;
+        let it = Eip7748Iterator::new(tx, rocksdb, Some(|addr| pb.progress(addr)))?;
         println!("[2/2] Generating preimage file...");
         cmds::generate(path, it, AddressProgressBar::new(true))?;
     } else {
@@ -164,19 +166,19 @@ fn generate_cmd(tx: &Tx<RO>, path: &str, order: OrderArgs) -> Result<()> {
     Ok(())
 }
 
-fn verify_cmd(tx: &Tx<RO>, path: &str, order: OrderArgs) -> Result<()> {
+fn verify_cmd(tx: &Tx<RO>, rocksdb: &RocksDBProvider, path: &str, order: OrderArgs) -> Result<()> {
     if order.plain {
         println!("[1/2] Verifying provided preimage file...");
         cmds::verify(
             path,
-            PlainIterator::new(tx)?,
+            PlainIterator::new(tx, rocksdb)?,
             AddressProgressBar::new(false),
         )?;
         println!("[2/2] The preimage file is valid!");
     } else if order.eip7748 {
         println!("[1/3] Ordering account addresses by hash...");
         let mut pb = AddressProgressBar::new(false);
-        let it = Eip7748Iterator::new(tx, Some(|addr| pb.progress(addr)))?;
+        let it = Eip7748Iterator::new(tx, rocksdb, Some(|addr| pb.progress(addr)))?;
         println!("[2/3] Verifying provided preimage file...");
         cmds::verify(path, it, AddressProgressBar::new(true))?;
         println!("[3/3] The preimage file is valid!");

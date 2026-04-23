@@ -6,7 +6,7 @@ resolver = "2"
 reth-db = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
 reth-db-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2", features = ["rocksdb"] }
 reth-node-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
 reth-stages = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.11.2" }
